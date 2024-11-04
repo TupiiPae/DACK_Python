@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<h1>Admin Dashboard</h1>
+<p>Total Users: {{ total_users }}</p>
+<p>Total Orders: {{ total_orders }}</p>
+<p>Total Products: {{ total_products }}</p>
+<h2>Recent Orders</h2>
+<ul>
+    {% for order in recent_orders %}
+        <li>Order #{{ order.id }} by {{ order.user.username }} - {{ order.status }}</li>
+    {% endfor %}
+</ul>
+<h2>Low Stock Products</h2>
+<ul>
+    {% for product in low_stock_products %}
+        <li>{{ product.name }} - Stock: {{ product.stock }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}

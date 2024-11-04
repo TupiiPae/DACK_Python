@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<div class="product-detail">
+    <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" alt="{{ product.name }}">
+    <h2>{{ product.name }}</h2>
+    <p>{{ product.description }}</p>
+    <p>Price: {{ product.price }} USD</p>
+    <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST">
+        <label for="quantity">Quantity:</label>
+        <input type="number" name="quantity" min="1" max="{{ product.stock }}" value="1">
+        <button type="submit">Add to Cart</button>
+    </form>
+</div>
+<h3>Related Products</h3>
+<div class="related-products">
+    {% for related in related_products %}
+        <div class="product-card">
+            <a href="{{ url_for('product_detail', product_id=related.id) }}">
+                <img src="{{ url_for('static', filename='uploads/' + related.image_url) }}" alt="{{ related.name }}">
+                <h4>{{ related.name }}</h4>
+            </a>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

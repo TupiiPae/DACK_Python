@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Xóa Sản Phẩm</h2>
+<form method="POST" action="{{ url_for('admin_delete_product', product_id=product.id) }}">
+    <p>Bạn có chắc chắn muốn xóa sản phẩm "{{ product.name }}" không?</p>
+    <button type="submit" class="btn btn-danger">Xóa</button>
+    <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">Hủy</a>
+</form>
+{% endblock %}
