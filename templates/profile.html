@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Thông tin cá nhân</h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('profile') }}">
+                        <!-- Thông tin cơ bản -->
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">Họ và tên</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" 
+                                   value="{{ current_user.full_name }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ current_user.email }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Địa chỉ</label>
+                            <input type="text" class="form-control" id="address" name="address" 
+                                   value="{{ current_user.address }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Số điện thoại</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ current_user.phone }}">
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Phần đổi mật khẩu -->
+                        <h5 class="mb-3">Đổi mật khẩu</h5>
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Mật khẩu hiện tại</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password">
+                        </div>
+
+                        <div class="mb-3"><label for="new_password" class="form-label">Mật khẩu mới</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Xác nhận mật khẩu mới</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">Cập nhật thông tin</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript để validate form -->
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const newPassword = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const currentPassword = document.getElementById('current_password').value;
+
+    if (newPassword || confirmPassword || currentPassword) {
+        if (!currentPassword) {
+            e.preventDefault();
+            alert('Vui lòng nhập mật khẩu hiện tại!');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('Mật khẩu mới không khớp!');
+            return;
+        }
+        if (newPassword.length < 6) {
+            e.preventDefault();
+            alert('Mật khẩu mới phải có ít nhất 6 ký tự!');
+            return;
+        }
+    }
+});
+</script>
+{% endblock %}
