@@ -1,17 +1,21 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h1>Welcome to Fashion Shop</h1>
 <div class="row">
-    {% for product in products %}
-    <div class="col-md-4 mb-4">
+    {% for product in products.items %}
+    <div class="col-12 col-md-6 col-lg-3 mb-4">
         <div class="card">
             {% if product.image_url %}
-            <img src="{{ product.image_url }}" class="card-img-top" alt="{{ product.name }}">
+            <img src="{{ url_for('static', filename='uploads/' + product.image_url) }}" class="card-img-top" alt="{{ product.name }}">
+            {% else %}
+            <p>No image available</p>
             {% endif %}
             <div class="card-body">
                 <h5 class="card-title">{{ product.name }}</h5>
                 <p class="card-text">{{ product.description }}</p>
                 <p class="card-text"><strong>Price: ${{ "%.2f"|format(product.price) }}</strong></p>
+
                 {% if current_user.is_authenticated and not current_user.is_admin %}
                 <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="post">
                     <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control mb-2">
@@ -22,5 +26,15 @@
         </div>
     </div>
     {% endfor %}
+</div>
+
+<!-- Pagination Controls -->
+<div class="pagination">
+    {% if products.has_prev %}
+        <a href="{{ url_for('index', page=products.prev_num) }}" class="btn btn-secondary">Previous</a>
+    {% endif %}
+    {% if products.has_next %}
+        <a href="{{ url_for('index', page=products.next_num) }}" class="btn btn-secondary">Next</a>
+    {% endif %}
 </div>
 {% endblock %}

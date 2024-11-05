@@ -7,9 +7,10 @@ import os
 from functools import wraps
 from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, DecimalField, IntegerField, SelectField, FileField, SubmitField
-from wtforms.validators import DataRequired
-
+from wtforms import StringField, FloatField, TextAreaField, DecimalField, IntegerField, SelectField, FileField, SubmitField
+from wtforms.validators import DataRequired, NumberRange
+from flask_wtf.file import FileField, FileAllowed
+from flask import current_app
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shop.db'
@@ -19,6 +20,11 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'  # Thư mục lưu ảnh upload
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+# Cấu hình upload trong app.py hoặc __init__.py
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # giới hạn kích thước file (16MB)
+
+
 
 # Decorator kiểm tra admin
 def admin_required(f):
@@ -33,20 +39,53 @@ def admin_required(f):
 import os
 from werkzeug.utils import secure_filename
 
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 def save_image(uploaded_file):
-    # Specify the folder where you want to save the uploaded images
-    upload_folder = 'path/to/upload/folder'
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
+    """
+    Save the uploaded image to the configured upload folder
+    Args:
+        uploaded_file: FileStorage object from form submission
+    Returns:
+        str: filename of saved image or None if save failed
+    """
+    if not uploaded_file:
+        return None
 
-    # Secure the filename and save the file
-    filename = secure_filename(uploaded_file.filename)
-    file_path = os.path.join(upload_folder, filename)
-    uploaded_file.save(file_path)
+    # Define allowed extensions
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    
+    try:
+        # Get original filename and check extension
+        original_filename = uploaded_file.filename
+        extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else None
+        
+        if extension not in ALLOWED_EXTENSIONS:
+            return None
 
-    return filename  # Or return the path if you want to store it in the database
+        # Create unique filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = secure_filename(f"{timestamp}_{original_filename}")
+        
+        # Get upload folder path from app config
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+        
+        # Create upload folder if it doesn't exist
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
 
+        # Save the file
+        file_path = os.path.join(upload_folder, filename)
+        uploaded_file.save(file_path)
+        
+        return filename
 
+    except Exception as e:
+        current_app.logger.error(f"Error saving image: {str(e)}")
+        return None
+    
 # Models
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -82,15 +121,14 @@ class Product(db.Model):
     order_items = db.relationship('OrderItem', backref='product', lazy=True)
     
 class ProductForm(FlaskForm):
-    name = StringField('Product Name', validators=[DataRequired()])
-    description = TextAreaField('Description')
-    price = DecimalField('Price', validators=[DataRequired()])
-    stock = IntegerField('Stock', validators=[DataRequired()])
-    category_id = SelectField('Category', coerce=int, validators=[DataRequired()])
-    image = FileField('Product Image')  # Ensure this line is included
-    submit = SubmitField('Submit')
-
-
+    name = StringField('Tên sản phẩm', validators=[DataRequired()])
+    price = FloatField('Giá', validators=[DataRequired(), NumberRange(min=0)])
+    stock = IntegerField('Số lượng trong kho', validators=[DataRequired(), NumberRange(min=0)])
+    category_id = SelectField('Danh mục', coerce=int, validators=[DataRequired()])
+    description = TextAreaField('Mô tả')
+    image = FileField('Hình ảnh sản phẩm', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'webp'], 'Chỉ cho phép file ảnh!')
+    ])
 
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -391,22 +429,36 @@ def admin_new_product():
     form.category_id.choices = [(c.id, c.name) for c in Category.query.all()]
 
     if form.validate_on_submit():
-        # Create a new product instance with the form data
-        new_product = Product(
-            name=form.name.data,
-            price=form.price.data,
-            stock=form.stock.data,
-            category_id=form.category_id.data,
-            description=form.description.data  # Include other fields as needed
-        )
-        
-        # Add to the session and commit to save in the database
-        db.session.add(new_product)
-        db.session.commit()
+        try:
+            # Xử lý upload ảnh
+            image_filename = None
+            if form.image.data:
+                image_filename = save_image(form.image.data)
+                if not image_filename:
+                    flash('Lỗi khi upload ảnh. Vui lòng kiểm tra định dạng file.', 'error')
+                    return render_template('admin/product_form.html', form=form)
 
-        flash('Sản phẩm mới đã được thêm thành công!', 'success')
-        return redirect(url_for('admin_products'))  # Adjust with your product list route
+            # Tạo sản phẩm mới
+            new_product = Product(
+                name=form.name.data,
+                price=form.price.data,
+                stock=form.stock.data,
+                category_id=form.category_id.data,
+                description=form.description.data,
+                image_url=image_filename
+            )
+            
+            db.session.add(new_product)
+            db.session.commit()
 
+            flash('Sản phẩm mới đã được thêm thành công!', 'success')
+            return redirect(url_for('admin_products'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating product: {str(e)}")
+            flash('Có lỗi xảy ra khi thêm sản phẩm. Vui lòng thử lại.', 'error')
+            
     return render_template('admin/product_form.html', form=form)
 
 @app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
@@ -427,7 +479,7 @@ def admin_edit_product(product_id):
         # Handle file upload for the image (if necessary)
         if form.image.data:
             # Assuming you have a method to handle image saving
-            product.image = save_image(form.image.data)
+            product.image_url = save_image(form.image.data)
 
         # Commit the changes to the database
         db.session.commit()
